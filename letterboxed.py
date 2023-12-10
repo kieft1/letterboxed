@@ -6,17 +6,18 @@ import sys
 import json
 import os
 from datetime import datetime
+import nyt_metadata
 
 ### OPTIONS ###
 # declare longest length to try before finding or giving up on a chain (3 is ok, 4 or higher may take a while)
-len_max = 2
+max_chain_length = 2
 
 # True if max should be set to the best solution found so far, ex. you found a chain of 2, you don't care about finding a chain of 3 anymore
 # False if you want to find all chains up to the provided len_max (3 is ok, 4 or higher may take a while)
 decreasing_max = False
 
-# word list type (words_easy, words_hard, scrabble_plus_long)
-word_list_type = "words_hard"
+# word list type (nyt_dictionary,words_easy,words_hard,scrabble_plus_long)
+word_list_type = "nyt_dictionary"
 
 # output results to file
 save_results = True
@@ -51,20 +52,25 @@ def load_words(filename):
 def get_word_set(set_name:str):
     if set_name == "scrabble_plus_long":
         # get scrabble word list and larger list just for words longer than 8 char (not in scrabble list)
-        word_set_scrabble = load_words('./words/words.txt')
+        word_set = load_words('./words/words_scrabble.txt')
         word_set_long = load_words('./words/wordlist.txt')
-        word_set = word_set_scrabble
         
         for w in word_set_long:
             if len(w) > 8:
                 word_set.append(w)
         return word_set
         # could probably save this off into a separate file
-
-    if set_name == "words_easy":
+    elif set_name == "words_easy":
         return load_words('./words/alice/words_easy.txt')
-    if set_name == "words_hard":
+    elif set_name == "words_hard":
         return load_words('./words/alice/words_hard.txt')
+    elif set_name == "nyt_dictionary":
+        words_file_path = f"./words/nyt/{date_of_puzzle}.txt"
+        if not os.path.isfile(words_file_path):
+            nyt_metadata.save_todays_dictionary()
+        return load_words(words_file_path)
+    else:
+        raise ValueError(f"\"{set_name}\" not valid option for word_list_type")
 
 word_set = get_word_set(word_list_type)
 
@@ -141,7 +147,7 @@ possible_chains_string = []
 
 # for each list provided, get possible next words, create another set of lists, and continue until all 12 letters have been used
 def create_chains(list_of_lists:list):
-    global len_max
+    global max_chain_length
     global decreasing_max
     global possible_chains
     for l in list_of_lists:
@@ -152,10 +158,10 @@ def create_chains(list_of_lists:list):
         if len(remaining_letters) == 0:
             print(l)
             if decreasing_max:
-                len_max = len(l)
+                max_chain_length = len(l)
             possible_chains.append(l)
             possible_chains_string.append(' - '.join(l))
-        elif len(l) >= len_max:
+        elif len(l) >= max_chain_length:
             break
         else:
             remaining_words_sorted = reorder_words(remaining_words,remaining_letters)
@@ -182,14 +188,14 @@ if save_results:
     data = {
         "date_of_puzzle":date_of_puzzle,
         "word_list_type":word_list_type,
-        "max_length":len_max,
+        "max_chain_length":max_chain_length,
         "letters":letters_matrix.tolist(),
         "chains":possible_chains,
         "chains_string":possible_chains_string
     }
 
     directory = fr".\results\{date_of_puzzle}"
-    file_path = os.path.join(directory, f"output_{len_max}_{word_list_type}.json")
+    file_path = os.path.join(directory, f"output_{max_chain_length}_{word_list_type}.json")
 
     if not os.path.exists(directory):
         os.makedirs(directory)
@@ -198,4 +204,4 @@ if save_results:
     with open(file_path, 'w') as json_file:
         json.dump(data, json_file, indent=4)
 
-    print(f"The data has been saved to {file_path}.")
+    print(f"Results have been saved to: {file_path}")
