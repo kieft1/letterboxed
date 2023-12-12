@@ -23,12 +23,12 @@ word_list_type = "nyt_dictionary"
 save_results = True
 
 ### DEFINE PUZZLE ###
-date_of_puzzle = "2023-12-10"
+date_of_puzzle = "2023-12-12"
 #define letter box sides
-letters_left = ["t","c","d"]
-letters_top = ["p","k","a"]
-letters_right = ["i","b","o"]
-letters_bottom = ["r","s","w"]
+letters_left   = ["o","a","u"]
+letters_top    = ["t","l","q"]
+letters_right  = ["s","r","w"]
+letters_bottom = ["n","c","e"]
 
 #create matrix for checking if consecutive letters are on same side of box
 letters_matrix = np.array([letters_left,letters_top,letters_right,letters_bottom])
@@ -114,7 +114,9 @@ def reorder_words(words, letters):
 
 # first sort will just be by length as all letters are left to find
 sorted_word_list = reorder_words(word_set_filtered_2,letters_list).copy()
-print(sorted_word_list)
+#print(sorted_word_list)
+
+print(sorted(sorted_word_list))
 
 
 # function to get list of words that start with the letter we need next
@@ -161,8 +163,8 @@ def create_chains(list_of_lists:list):
                 max_chain_length = len(l)
             possible_chains.append(l)
             possible_chains_string.append(' - '.join(l))
-        elif len(l) >= max_chain_length:
-            break
+        elif len(l) == max_chain_length:
+            continue
         else:
             remaining_words_sorted = reorder_words(remaining_words,remaining_letters)
             last_letter = l[-1][-1]
