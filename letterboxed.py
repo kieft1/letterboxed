@@ -83,24 +83,31 @@ def contains_any_letter(input_string, letters_to_check):
             return True
     return False
 
-# remove words that have letters not in list of provided letters
-# include words only > 2 char in length
-word_set_filtered = set({})
-for w in word_set:
-    if not contains_any_letter(w,letters_not_list) and len(w) > 2:
-        word_set_filtered.add(w)
 
-# remove words that have consecutive letters on same side
-word_set_filtered_2 = word_set_filtered.copy()
-for w in word_set_filtered:
-    num_prev = -1
-    for i,char_to_lookup in enumerate(w):
-        row_indices = np.where(letters_matrix == char_to_lookup)[0]
-        if row_indices == num_prev:
-            word_set_filtered_2.remove(w)
-            break
-        else:
-            num_prev = row_indices
+# if word_set is nyt_dictionary, assume the list is already good as-is
+if word_set == "nyt_dictionary":
+    word_set_filtered = set(word_set)
+    word_set_filtered_2 = word_set_filtered
+
+else:
+    # remove words that have letters not in list of provided letters
+    # include words only > 2 char in length
+    word_set_filtered = set({})
+    for w in word_set:
+        if not contains_any_letter(w,letters_not_list) and len(w) > 2:
+            word_set_filtered.add(w)
+
+    # remove words that have consecutive letters on same side
+    word_set_filtered_2 = word_set_filtered.copy()
+    for w in word_set_filtered:
+        num_prev = -1
+        for i,char_to_lookup in enumerate(w):
+            row_indices = np.where(letters_matrix == char_to_lookup)[0]
+            if row_indices == num_prev:
+                word_set_filtered_2.remove(w)
+                break
+            else:
+                num_prev = row_indices
 
 # function to sort words based on how many letters they have left to cover
 # ideally we could remove words that don't have any letters in them that we need to still get
@@ -112,10 +119,14 @@ def reorder_words(words, letters):
     sorted_words = sorted(words, key=key_function, reverse=True)
     return sorted_words
 
-# first sort will just be by length as all letters are left to find
-sorted_word_list = reorder_words(word_set_filtered_2,letters_list).copy()
-#print(sorted_word_list)
+if decreasing_max:
+    # first sort will just be by length as all letters are left to find
+    sorted_word_list = reorder_words(word_set_filtered_2,letters_list).copy()
+else:
+    # otherwise just sort alpha since all combinations will be checked
+    sorted_word_list = sorted(word_set_filtered_2).copy()
 
+#display alpha word list
 print(sorted(sorted_word_list))
 
 
@@ -166,13 +177,18 @@ def create_chains(list_of_lists:list):
         elif len(l) == max_chain_length:
             continue
         else:
-            remaining_words_sorted = reorder_words(remaining_words,remaining_letters)
             last_letter = l[-1][-1]
-            for w in l:
-                remaining_words_sorted.remove(w)
-            #print(remaining_words_sorted)
-            next_words = starting_letter_words(remaining_words_sorted,last_letter)
-            #print(next_words)
+            # if looking for shortest chain, reorder the words to get the better options first
+            if decreasing_max:
+                remaining_words_sorted = reorder_words(remaining_words,remaining_letters)
+                for w in l:
+                    remaining_words_sorted.remove(w)
+                next_words = starting_letter_words(remaining_words_sorted,last_letter)
+            # otherwise don't bother reordering the list
+            else:
+                for w in l:
+                    remaining_words.remove(w)
+                next_words = starting_letter_words(remaining_words,last_letter)
             l2 = []
             for n in next_words:
                 new_list = l.copy()
