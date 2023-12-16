@@ -23,17 +23,13 @@ word_list_type = "nyt_dictionary"
 save_results = True
 
 ### DEFINE PUZZLE ###
-date_of_puzzle = "2023-12-12"
-#define letter box sides
-letters_left   = ["o","a","u"]
-letters_top    = ["t","l","q"]
-letters_right  = ["s","r","w"]
-letters_bottom = ["n","c","e"]
+date_of_puzzle = "2023-12-16"
+letters = "wcmhksobetai"
 
 #create matrix for checking if consecutive letters are on same side of box
-letters_matrix = np.array([letters_left,letters_top,letters_right,letters_bottom])
+letters_matrix = np.array([list(letters[0:3]),list(letters[3:6]),list(letters[6:9]),list(letters[9:12])])
 #create list of all letters
-letters_list = letters_matrix.flatten().tolist()
+letters_list = list(letters)
 #get list of letters not in list to remove words that have these letters, they cannot be guesses
 letters_not_list = list(set(list(string.ascii_lowercase)) - set(letters_list))
 
