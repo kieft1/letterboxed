@@ -7,6 +7,7 @@ import json
 import os
 from datetime import datetime
 import nyt_metadata
+import results_ranking
 
 ### OPTIONS ###
 # print three word chain results as they are found, makes it a bit slower
@@ -18,9 +19,13 @@ word_list_type = "nyt_dictionary"
 # output results to file
 save_results = True
 
+# include results ranking to show best options based on least repeated letters
+include_results_ranking = True
+results_ranking_top_n = 10
+
 ### DEFINE PUZZLE ###
-date_of_puzzle = "2023-12-16"
-letters = "wcmhksobetai"
+date_of_puzzle = "2023-12-17"
+letters = "wfpdmeoihars"
 
 letters_list_separated = [letters[0:3],letters[3:6],letters[6:9],letters[9:12]]
 #create matrix for checking if consecutive letters are on same side of box
@@ -204,6 +209,11 @@ possible_chains_1 = [' - '.join(p) for p in one_word_chains]
 possible_chains_2 = [' - '.join(p) for p in two_word_chains]
 possible_chains_3 = [' - '.join(p) for p in three_word_chains]
 
+if include_results_ranking:
+    one_word_chains_ranking = results_ranking.top_results(possible_chains_1,results_ranking_top_n)
+    two_word_chains_ranking = results_ranking.top_results(possible_chains_2,results_ranking_top_n)
+    three_word_chains_ranking = results_ranking.top_results(possible_chains_3,results_ranking_top_n)
+
 # end of getting results
 end_time = datetime.now()
 
@@ -224,10 +234,18 @@ if save_results:
         "one word chains":len(one_word_chains),
         "two word chains":len(two_word_chains),
         "three word chains":len(three_word_chains),
+    }
+    if include_results_ranking:
+        data.update({
+            f"top {results_ranking_top_n} one word chains":one_word_chains_ranking,
+            f"top {results_ranking_top_n} two word chains":two_word_chains_ranking,
+            f"top {results_ranking_top_n} three word chains":three_word_chains_ranking
+        })
+    data.update({
         "chains_1":possible_chains_1,
         "chains_2":possible_chains_2,
         "chains_3":possible_chains_3
-    }
+    })
 
     directory = fr".\results\{date_of_puzzle}"
     file_path = os.path.join(directory, f"output_all_{word_list_type}.json")
