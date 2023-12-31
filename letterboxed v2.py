@@ -8,6 +8,7 @@ import os
 from datetime import datetime
 import nyt_metadata
 import results_ranking
+from tqdm import tqdm
 
 ### OPTIONS ###
 # print three word chain results as they are found, makes it a bit slower
@@ -25,8 +26,8 @@ results_ranking_top_n = 10
 ranking_criteria = "total_repeated_count"
 
 ### DEFINE PUZZLE ###
-date_of_puzzle = "2023-12-18"
-letters = "xnramielvgut"
+date_of_puzzle = "2023-12-31"
+letters = "dftmogaiprhl"
 
 letters_list_separated = [letters[0:3],letters[3:6],letters[6:9],letters[9:12]]
 #create matrix for checking if consecutive letters are on same side of box
@@ -171,7 +172,7 @@ def one_word_list(word_list:list,letters_list:list):
 def two_plus_one_combinations(two_word_combinations:list,one_word_list:list,order:string):
     results = []
     if order == "two_then_one":
-        for tw in two_word_combinations:
+        for tw in tqdm(two_word_combinations,desc="Progress",colour="blue"):
             for ow in one_word_list:
                 if tw["word2"][-1] == ow["word"][0] \
                 and not (set(tw["letters_remaining"]) - set(ow["letters_contained"])) \
