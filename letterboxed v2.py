@@ -1,5 +1,3 @@
-#from english_words import get_english_words_set
-#from nltk.corpus import words
 import numpy as np
 import string
 import sys
@@ -9,6 +7,7 @@ from datetime import datetime
 import nyt_metadata
 import results_ranking
 from tqdm import tqdm
+from colorama import Fore
 
 ### OPTIONS ###
 # print three word chain results as they are found, makes it a bit slower
@@ -46,10 +45,12 @@ print(f"letters_list: {letters_list_separated}")
 
 def load_words(filename):
     with open(filename, 'r') as file:
-        words = [line.strip() for line in file]
+        words = [line.strip().replace('-','') for line in file if line.strip().replace('-','').isalpha()]
     return words
 
 def get_word_set(set_name:str):
+    set_names = ["scrabble_plus_long","words_easy","words_hard","nyt_dictionary"]
+    
     if set_name == "scrabble_plus_long":
         # get scrabble word list and larger list just for words longer than 8 char (not in scrabble list)
         word_set = load_words('./words/words_scrabble.txt')
@@ -67,10 +68,15 @@ def get_word_set(set_name:str):
     elif set_name == "nyt_dictionary":
         words_file_path = f"./words/nyt/{date_of_puzzle}.txt"
         if not os.path.isfile(words_file_path):
-            nyt_metadata.save_todays_dictionary()
+            if date_of_puzzle == datetime.now().strftime('%Y-%m-%d'):
+                nyt_metadata.save_todays_dictionary()
+            else:
+                set_names.remove(set_name)
+                print(Fore.RED + f"Cannot retrieve old puzzle word lists. Try using another word set. Valid values: {set_names}")
+                sys.exit()
         return load_words(words_file_path)
     else:
-        raise ValueError(f"\"{set_name}\" not valid option for word_list_type")
+        raise ValueError(Fore.RED + f"\"{set_name}\" not valid option for word_list_type. Valid values: {set_names}")
 
 word_set = get_word_set(word_list_type)
 
