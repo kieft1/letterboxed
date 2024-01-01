@@ -1,5 +1,3 @@
-#from english_words import get_english_words_set
-#from nltk.corpus import words
 import numpy as np
 import string
 import sys
@@ -7,25 +5,49 @@ import json
 import os
 from datetime import datetime
 import nyt_metadata
+import results_ranking
+from tqdm import tqdm
+from colorama import Fore
 
 ### OPTIONS ###
-# declare longest length to try before finding or giving up on a chain (3 is ok, 4 or higher may take a while)
-max_chain_length = 2
+# print three word chain results as they are found, makes it a bit slower
+print_results_option = False
 
-# True if max should be set to the best solution found so far, ex. you found a chain of 2, you don't care about finding a chain of 3 anymore
-# False if you want to find all chains up to the provided len_max (3 is ok, 4 or higher may take a while)
-decreasing_max = False
+# puzzle type (nyt,manual)
+puzzle_type = "nyt"
 
-# word list type (nyt_dictionary,words_easy,words_hard,scrabble_plus_long)
-word_list_type = "nyt_dictionary"
+if puzzle_type != "nyt":
+    ### DEFINE PUZZLE ###
+    date_of_puzzle = datetime.now().strftime('%Y-%m-%d')
+    letters = "abcdefghijkl"
+    # word list type (words_easy,words_hard,scrabble_plus_long)
+    word_list_type = "scrabble_plus_long"
+    nyt_solution = ""
+elif puzzle_type == "nyt":
+    todays_puzzle = nyt_metadata.get_todays_metadata()
+    date_of_puzzle = todays_puzzle["date"]
+    sides = todays_puzzle["sides"]
+    letters = ''.join(sides).lower()
+    word_list_type = "nyt_dictionary"
+    nyt_solution = ' - '.join(todays_puzzle["nyt_solution"]).lower()
 
 # output results to file
 save_results = True
 
-### DEFINE PUZZLE ###
-date_of_puzzle = "2023-12-16"
-letters = "wcmhksobetai"
+# include results ranking to show best options based on least repeated letters
+include_results_ranking = True
+results_ranking_top_n = 10
+ranking_criteria = "total_repeated_count"
 
+letters = letters.lower()
+
+#check letters input
+if len(letters) != 12:
+    raise ValueError(Fore.RED + f"letters list should have exactly 12 letters. \"{letters}\" has {len(letters)} letters.")
+if len({char for char in letters}) != 12:
+    raise ValueError(Fore.RED + f"\"{letters}\" contains duplicate letters. letters list must have 12 distinct letters.")
+
+letters_list_separated = [letters[0:3],letters[3:6],letters[6:9],letters[9:12]]
 #create matrix for checking if consecutive letters are on same side of box
 letters_matrix = np.array([list(letters[0:3]),list(letters[3:6]),list(letters[6:9]),list(letters[9:12])])
 #create list of all letters
@@ -33,19 +55,18 @@ letters_list = list(letters)
 #get list of letters not in list to remove words that have these letters, they cannot be guesses
 letters_not_list = list(set(list(string.ascii_lowercase)) - set(letters_list))
 
-print(letters_list)
-print(letters_not_list)
+print(f"date_of_puzzle: {date_of_puzzle}")
+print(f"letters_list: {letters_list_separated}")
 
 ### GET LIST OF WORDS ###
-#word_set = get_english_words_set(sources=['web2'],alpha=True,lower=True)
-#word_set = words.words()
-
 def load_words(filename):
     with open(filename, 'r') as file:
-        words = [line.strip() for line in file]
+        words = [line.strip().replace('-','') for line in file if line.strip().replace('-','').isalpha()]
     return words
 
 def get_word_set(set_name:str):
+    set_names = ["scrabble_plus_long","words_easy","words_hard","nyt_dictionary"]
+    
     if set_name == "scrabble_plus_long":
         # get scrabble word list and larger list just for words longer than 8 char (not in scrabble list)
         word_set = load_words('./words/words_scrabble.txt')
@@ -54,23 +75,30 @@ def get_word_set(set_name:str):
         for w in word_set_long:
             if len(w) > 8:
                 word_set.append(w)
-        return word_set
         # could probably save this off into a separate file
     elif set_name == "words_easy":
-        return load_words('./words/alice/words_easy.txt')
+        word_set = load_words('./words/alice/words_easy.txt')
     elif set_name == "words_hard":
-        return load_words('./words/alice/words_hard.txt')
+        word_set = load_words('./words/alice/words_hard.txt')
     elif set_name == "nyt_dictionary":
         words_file_path = f"./words/nyt/{date_of_puzzle}.txt"
         if not os.path.isfile(words_file_path):
-            nyt_metadata.save_todays_dictionary()
-        return load_words(words_file_path)
+            if date_of_puzzle == datetime.now().strftime('%Y-%m-%d'):
+                nyt_metadata.save_todays_dictionary()
+            else:
+                set_names.remove(set_name)
+                raise ValueError(Fore.RED + f"Cannot retrieve old puzzle word lists. Try using another word set. Valid values: {set_names}")
+        word_set = load_words(words_file_path)
     else:
-        raise ValueError(f"\"{set_name}\" not valid option for word_list_type")
+        raise ValueError(Fore.RED + f"\"{set_name}\" not valid option for word_list_type. Valid values: {set_names}")
+    
+    word_set = [item.lower() for item in word_set]
+    return word_set
+
+if puzzle_type != "nyt" and word_list_type == "nyt_dictionary":
+    print(Fore.RED + f"Warning! The daily NYT word list is not a complete list of words. Results may not be generated." + Fore.RESET)
 
 word_set = get_word_set(word_list_type)
-
-word_set = [item.lower() for item in word_set]
 
 # function to determine if word contains any of the letters we can't use
 def contains_any_letter(input_string, letters_to_check):
@@ -105,117 +133,170 @@ else:
             else:
                 num_prev = row_indices
 
-# function to sort words based on how many letters they have left to cover
-# ideally we could remove words that don't have any letters in them that we need to still get
-# but there might be a puzzle that requires us to add another word out of only used letters to change our ending letter (probably quite rare)
-def reorder_words(words, letters):
-    def key_function(word):
-        return sum(1 for letter in word if letter in letters)
-    #sort the words based on the number of matching letters
-    sorted_words = sorted(words, key=key_function, reverse=True)
-    return sorted_words
-
-if decreasing_max:
-    # first sort will just be by length as all letters are left to find
-    sorted_word_list = reorder_words(word_set_filtered_2,letters_list).copy()
-else:
-    # otherwise just sort alpha since all combinations will be checked
-    sorted_word_list = sorted(word_set_filtered_2).copy()
+sorted_word_list = sorted(word_set_filtered_2).copy()
 
 #display alpha word list
-print(sorted(sorted_word_list))
+#print(sorted(sorted_word_list))
 
 
-# function to get list of words that start with the letter we need next
-def starting_letter_words(words_to_pick_from: list,starting_letter: str):
-    return_list_of_words = []
-    for w in words_to_pick_from:
-        if w[0] == starting_letter:
-            return_list_of_words.append(w)
-    #print(return_list_of_words)
-    return return_list_of_words
+### START GETTING RESULTS ###
 
-# function to remove letters from the list we still need to get based on the word provided
-def remove_letters_from_list(word: str,letters_list: list):
-    #remove letters from letters list
-    for char in word:
-        if char in letters_list:
-            letters_list.remove(char)
-    return letters_list
+def print_optional(p):
+    if print_results_option:
+        print(p)
 
-### CREATE LISTS ###
-# create list starting with each word
-list_of_lists = []
-for w in sorted_word_list:
-    list_of_lists.append([w])
+### THREE WORD CHAINS IN ONE STEP ###
 
+# leaving this solution in here, but it's about 5x slower than the two plus one approach
+def three_word_solutions(word_list:list,letters_list:list):
+    letters_set = set(letters_list)
+    results = [
+        [word1 , word2 , word3]
+        for word1 in word_list
+        for word2 in word_list
+        for word3 in word_list
+        #if word1 != word2 and word2 != word3 and word3 != word1
+        if word1[-1] == word2[0]
+        if word2[-1] == word3[0]
+        if not letters_set - (set(word1) | set(word2) | set(word3))
+    ]
+    return results
 
-# declare empty list to add chains to
-possible_chains = []
-possible_chains_string = []
+### THREE WORD CHAINS WITH TWO THEN ONE ###
 
-# for each list provided, get possible next words, create another set of lists, and continue until all 12 letters have been used
-def create_chains(list_of_lists:list):
-    global max_chain_length
-    global decreasing_max
-    global possible_chains
-    for l in list_of_lists:
-        remaining_words = sorted_word_list.copy()
-        remaining_letters = letters_list.copy()
-        for w in l:
-            remaining_letters = remove_letters_from_list(w,remaining_letters)
-        if len(remaining_letters) == 0:
-            print(l)
-            if decreasing_max:
-                max_chain_length = len(l)
-            possible_chains.append(l)
-            possible_chains_string.append(' - '.join(l))
-        elif len(l) == max_chain_length:
-            continue
-        else:
-            last_letter = l[-1][-1]
-            # if looking for shortest chain, reorder the words to get the better options first
-            if decreasing_max:
-                remaining_words_sorted = reorder_words(remaining_words,remaining_letters)
-                for w in l:
-                    remaining_words_sorted.remove(w)
-                next_words = starting_letter_words(remaining_words_sorted,last_letter)
-            # otherwise don't bother reordering the list
-            else:
-                for w in l:
-                    remaining_words.remove(w)
-                next_words = starting_letter_words(remaining_words,last_letter)
-            l2 = []
-            for n in next_words:
-                new_list = l.copy()
-                new_list.append(n)
-                #print(new_list)
-                l2.append(new_list)
-            #print(l2)
-            create_chains(l2)
+# create list of two words with letters contained and letters remaining
+def two_word_combinations(word_list:list,letters_list:list):
+    results = [
+        {
+            "word1":word1,
+            "word2":word2,
+            "letters_contained":list(set(word1) | set(word2)),
+            "letters_remaining":list(set(letters_list) - (set(word1) | set(word2)))
+        }
+        for word1 in word_list
+        for word2 in word_list
+        if word1 != word2
+        if word1[-1] == word2[0]
+    ]
+    return results
 
-create_chains(list_of_lists)
+# create list of single words with letters contained and letters remaining
+def one_word_list(word_list:list,letters_list:list):
+    results = [
+        {
+            "word" : word,
+            "letters_contained" : list(set(word)),
+            "letters_remaining" : list(set(letters_list)-set(word))
+        }
+        for word in word_list
+        ]
+    return results
 
-#print(possible_chains)
+# combine two word combinations with one word that satisfies letters list
+def two_plus_one_combinations(two_word_combinations:list,one_word_list:list,order:string):
+    results = []
+    if order == "two_then_one":
+        for tw in tqdm(two_word_combinations,desc="Progress",colour="blue"):
+            for ow in one_word_list:
+                if tw["word2"][-1] == ow["word"][0] \
+                and not (set(tw["letters_remaining"]) - set(ow["letters_contained"])) \
+                and not (tw["word2"] == ow["word"]):
+                    results.append([tw["word1"],tw["word2"],ow["word"]])
+                    print_optional([tw["word1"],tw["word2"],ow["word"]])
+    # one then two is a little slower
+    elif order == "one_then_two":
+        for ow in one_word_list:
+            for tw in two_word_combinations:
+                if ow["word"][-1] == tw["word1"][0] \
+                and not (set(ow["letters_remaining"]) - set(tw["letters_contained"])) \
+                and not (ow["word"] == tw["word1"]):
+                    results.append([ow["word"],tw["word1"],tw["word2"]])
+                    print_optional([ow["word"],tw["word1"],tw["word2"]])
+    return results
+
+# start to get results
+start_time = datetime.now()
+print(f"start time: {start_time}")
+
+twc = two_word_combinations(sorted_word_list,letters_list)
+owl = one_word_list(sorted_word_list,letters_list)
+
+# get solutions for one and two word chains
+one_word_chains = [[ow["word"]] for ow in owl if ow["letters_remaining"] == []]
+two_word_chains = [[tw["word1"],tw["word2"]] for tw in twc if tw["letters_remaining"] == []]
+
+# get solutions for three word chains
+# only try for two word chains that aren't already solutions by themselves, since two word chains would finish your game
+two_word_non_chains = [tw for tw in twc if not tw["letters_remaining"] == []]
+three_word_chains = two_plus_one_combinations(two_word_non_chains,owl,"two_then_one")
+
+# convert chain lists to single strings
+possible_chains_1 = [' - '.join(p) for p in one_word_chains]
+possible_chains_2 = [' - '.join(p) for p in two_word_chains]
+possible_chains_3 = [' - '.join(p) for p in three_word_chains]
+
+if include_results_ranking:
+    one_word_chains_ranking   = results_ranking.top_results(possible_chains_1,results_ranking_top_n,ranking_criteria)
+    two_word_chains_ranking   = results_ranking.top_results(possible_chains_2,results_ranking_top_n,ranking_criteria)
+    three_word_chains_ranking = results_ranking.top_results(possible_chains_3,results_ranking_top_n,ranking_criteria)
+
+# end of getting results
+end_time = datetime.now()
+
+print(f"end_time: {end_time}")
+print(f"duration: {(end_time - start_time)}")
+print(f"one word chains: {len(one_word_chains)}")
+print(f"two word chains: {len(two_word_chains)}")
+print(f"three word chains: {len(three_word_chains)}")
 
 if save_results:
     data = {
+        "puzzle_type":puzzle_type,
         "date_of_puzzle":date_of_puzzle,
+        "letters":letters_list_separated,
         "word_list_type":word_list_type,
-        "max_chain_length":max_chain_length,
-        "letters":letters_matrix.tolist(),
-        "chains":possible_chains,
-        "chains_string":possible_chains_string
+        "start_time":start_time,
+        "end_time":end_time,
+        "duration":(end_time - start_time),
+        "one word chains":len(one_word_chains),
+        "two word chains":len(two_word_chains),
+        "three word chains":len(three_word_chains),
+        "nyt_solution":nyt_solution,
     }
+    if include_results_ranking:
+        data.update({
+            f"ranking_criteria":ranking_criteria,
+            f"top {results_ranking_top_n} one word chains":one_word_chains_ranking,
+            f"top {results_ranking_top_n} two word chains":two_word_chains_ranking,
+            f"top {results_ranking_top_n} three word chains":three_word_chains_ranking
+        })
+    data.update({
+        "chains_1":possible_chains_1,
+        "chains_2":possible_chains_2,
+        "chains_3":possible_chains_3
+    })
 
     directory = fr".\results\{date_of_puzzle}"
-    file_path = os.path.join(directory, f"output_{max_chain_length}_{word_list_type}.json")
+    if puzzle_type == "nyt":
+        file_path = os.path.join(directory, f"output_{puzzle_type}.json")
+    else:
+        file_path = os.path.join(directory, f"output_{letters}_{word_list_type}.json")
 
     if not os.path.exists(directory):
         os.makedirs(directory)
 
     # Write the dictionary to a JSON file
     with open(file_path, 'w') as json_file:
-        json.dump(data, json_file, indent=4)
+        json.dump(data, json_file, indent=4, default=str)
 
     print(f"Results have been saved to: {file_path}")
+else:
+    print(f"top {results_ranking_top_n} one word chains:")
+    for c in one_word_chains_ranking:
+        print("\t" + c)
+    print(f"top {results_ranking_top_n} two word chains:")
+    for c in two_word_chains_ranking:
+        print("\t" + c)
+    print(f"top {results_ranking_top_n} three word chains:")
+    for c in three_word_chains_ranking:
+        print("\t" + c)
