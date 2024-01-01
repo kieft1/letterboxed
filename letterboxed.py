@@ -19,7 +19,7 @@ puzzle_type = "nyt"
 if puzzle_type != "nyt":
     ### DEFINE PUZZLE ###
     date_of_puzzle = datetime.now().strftime('%Y-%m-%d')
-    letters = "abcdefghijkl"
+    letters = "mnopqrstuabc"
     # word list type (words_easy,words_hard,scrabble_plus_long)
     word_list_type = "scrabble_plus_long"
     nyt_solution = ""
@@ -195,14 +195,25 @@ def one_word_list(word_list:list,letters_list:list):
 # combine two word combinations with one word that satisfies letters list
 def two_plus_one_combinations(two_word_combinations:list,one_word_list:list,order:string):
     results = []
+    results_message = "three word chains found"
+    results_count = 0
     if order == "two_then_one":
-        for tw in tqdm(two_word_combinations,desc="Progress",colour="blue"):
+        twc = tqdm(two_word_combinations,desc=f"{results_message} {results_count}",colour="blue")
+        twc_len = len(two_word_combinations)
+        for i, tw in enumerate(twc):
             for ow in one_word_list:
                 if tw["word2"][-1] == ow["word"][0] \
                 and not (set(tw["letters_remaining"]) - set(ow["letters_contained"])) \
                 and not (tw["word2"] == ow["word"]):
                     results.append([tw["word1"],tw["word2"],ow["word"]])
+                    results_count += 1
+                    # every 100 results found and final result, update the results message
+                    if results_count % 100 == 0 or i == twc_len:
+                        twc.set_description(f"{results_message} {results_count}")
                     print_optional([tw["word1"],tw["word2"],ow["word"]])
+                elif i == twc_len-1:
+                    # set the final result count in the penultimate iteration
+                    twc.set_description(f"{results_message} {results_count}")
     # one then two is a little slower
     elif order == "one_then_two":
         for ow in one_word_list:
