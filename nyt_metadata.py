@@ -14,7 +14,9 @@ def get_todays_metadata():
     end_dict = start_dict+ r.text[start_dict:].index("]")
     todays_dictionary = r.text[start_dict:end_dict+1]
 
-    return {'sides': todays_metadata['sides'], 'nyt_solution': todays_metadata['ourSolution'], 'dictionary': todays_dictionary}
+    #print(r.text)
+
+    return {'sides': todays_metadata['sides'], 'nyt_solution': todays_metadata['ourSolution'], 'date': todays_metadata['printDate'], 'dictionary': todays_dictionary}
 
 def save_todays_dictionary():
     import ast

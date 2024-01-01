@@ -13,8 +13,23 @@ from colorama import Fore
 # print three word chain results as they are found, makes it a bit slower
 print_results_option = False
 
-# word list type (nyt_dictionary,words_easy,words_hard,scrabble_plus_long)
-word_list_type = "nyt_dictionary"
+# puzzle type (nyt,manual)
+puzzle_type = "nyt"
+
+if puzzle_type != "nyt":
+    ### DEFINE PUZZLE ###
+    date_of_puzzle = datetime.now().strftime('%Y-%m-%d')
+    letters = "abcdefghijkl"
+    # word list type (words_easy,words_hard,scrabble_plus_long)
+    word_list_type = "scrabble_plus_long"
+    nyt_solution = ""
+elif puzzle_type == "nyt":
+    todays_puzzle = nyt_metadata.get_todays_metadata()
+    date_of_puzzle = todays_puzzle["date"]
+    sides = todays_puzzle["sides"]
+    letters = ''.join(sides).lower()
+    word_list_type = "nyt_dictionary"
+    nyt_solution = ' - '.join(todays_puzzle["nyt_solution"]).lower()
 
 # output results to file
 save_results = True
@@ -24,9 +39,13 @@ include_results_ranking = True
 results_ranking_top_n = 10
 ranking_criteria = "total_repeated_count"
 
-### DEFINE PUZZLE ###
-date_of_puzzle = "2023-12-31"
-letters = "dftmogaiprhl"
+letters = letters.lower()
+
+#check letters input
+if len(letters) != 12:
+    raise ValueError(Fore.RED + f"letters list should have exactly 12 letters. \"{letters}\" has {len(letters)} letters.")
+if len({char for char in letters}) != 12:
+    raise ValueError(Fore.RED + f"\"{letters}\" contains duplicate letters. letters list must have 12 distinct letters.")
 
 letters_list_separated = [letters[0:3],letters[3:6],letters[6:9],letters[9:12]]
 #create matrix for checking if consecutive letters are on same side of box
@@ -40,9 +59,6 @@ print(f"date_of_puzzle: {date_of_puzzle}")
 print(f"letters_list: {letters_list_separated}")
 
 ### GET LIST OF WORDS ###
-#word_set = get_english_words_set(sources=['web2'],alpha=True,lower=True)
-#word_set = words.words()
-
 def load_words(filename):
     with open(filename, 'r') as file:
         words = [line.strip().replace('-','') for line in file if line.strip().replace('-','').isalpha()]
@@ -59,12 +75,11 @@ def get_word_set(set_name:str):
         for w in word_set_long:
             if len(w) > 8:
                 word_set.append(w)
-        return word_set
         # could probably save this off into a separate file
     elif set_name == "words_easy":
-        return load_words('./words/alice/words_easy.txt')
+        word_set = load_words('./words/alice/words_easy.txt')
     elif set_name == "words_hard":
-        return load_words('./words/alice/words_hard.txt')
+        word_set = load_words('./words/alice/words_hard.txt')
     elif set_name == "nyt_dictionary":
         words_file_path = f"./words/nyt/{date_of_puzzle}.txt"
         if not os.path.isfile(words_file_path):
@@ -72,15 +87,18 @@ def get_word_set(set_name:str):
                 nyt_metadata.save_todays_dictionary()
             else:
                 set_names.remove(set_name)
-                print(Fore.RED + f"Cannot retrieve old puzzle word lists. Try using another word set. Valid values: {set_names}")
-                sys.exit()
-        return load_words(words_file_path)
+                raise ValueError(Fore.RED + f"Cannot retrieve old puzzle word lists. Try using another word set. Valid values: {set_names}")
+        word_set = load_words(words_file_path)
     else:
         raise ValueError(Fore.RED + f"\"{set_name}\" not valid option for word_list_type. Valid values: {set_names}")
+    
+    word_set = [item.lower() for item in word_set]
+    return word_set
+
+if puzzle_type != "nyt" and word_list_type == "nyt_dictionary":
+    print(Fore.RED + f"Warning! The daily NYT word list is not a complete list of words. Results may not be generated." + Fore.RESET)
 
 word_set = get_word_set(word_list_type)
-
-word_set = [item.lower() for item in word_set]
 
 # function to determine if word contains any of the letters we can't use
 def contains_any_letter(input_string, letters_to_check):
@@ -233,6 +251,7 @@ print(f"three word chains: {len(three_word_chains)}")
 
 if save_results:
     data = {
+        "puzzle_type":puzzle_type,
         "date_of_puzzle":date_of_puzzle,
         "letters":letters_list_separated,
         "word_list_type":word_list_type,
@@ -242,6 +261,7 @@ if save_results:
         "one word chains":len(one_word_chains),
         "two word chains":len(two_word_chains),
         "three word chains":len(three_word_chains),
+        "nyt_solution":nyt_solution,
     }
     if include_results_ranking:
         data.update({
@@ -257,7 +277,10 @@ if save_results:
     })
 
     directory = fr".\results\{date_of_puzzle}"
-    file_path = os.path.join(directory, f"output_all_{word_list_type}.json")
+    if puzzle_type == "nyt":
+        file_path = os.path.join(directory, f"output_{puzzle_type}.json")
+    else:
+        file_path = os.path.join(directory, f"output_{letters}_{word_list_type}.json")
 
     if not os.path.exists(directory):
         os.makedirs(directory)
@@ -267,3 +290,13 @@ if save_results:
         json.dump(data, json_file, indent=4, default=str)
 
     print(f"Results have been saved to: {file_path}")
+else:
+    print(f"top {results_ranking_top_n} one word chains:")
+    for c in one_word_chains_ranking:
+        print("\t" + c)
+    print(f"top {results_ranking_top_n} two word chains:")
+    for c in two_word_chains_ranking:
+        print("\t" + c)
+    print(f"top {results_ranking_top_n} three word chains:")
+    for c in three_word_chains_ranking:
+        print("\t" + c)
