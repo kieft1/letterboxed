@@ -19,8 +19,8 @@ The solver will construct chains of 1, 2, and 3 word solutions based on the puzz
     * no repeating letters
   * In order to reduce the time taken to determine solutions, the generic word lists are pared down based on these rules:
     * only containing letters from the puzzle
-    * no consecutive repeating letters
-    * no consecutive letters from the same side of the puzzle
+    * at least 3 letters in length
+    * no consecutive letters from the same side of the puzzle (includes consecutive repeated letters)
 
 ## Getting Started
 

@@ -22,6 +22,7 @@ if puzzle_type != "nyt":
     letters = "mnopqrstuabc"
     # word list type (words_easy,words_hard,scrabble_plus_long)
     word_list_type = "scrabble_plus_long"
+    word_set_date = "" # if using a pre-retrieve nyt_dictionary word set
     nyt_solution = ""
 elif puzzle_type == "nyt":
     todays_puzzle = nyt_metadata.get_todays_metadata()
@@ -29,6 +30,7 @@ elif puzzle_type == "nyt":
     sides = todays_puzzle["sides"]
     letters = ''.join(sides).lower()
     word_list_type = "nyt_dictionary"
+    word_set_date = todays_puzzle["date"]
     nyt_solution = ' - '.join(todays_puzzle["nyt_solution"]).lower()
 
 # output results to file
@@ -64,7 +66,7 @@ def load_words(filename):
         words = [line.strip().replace('-','') for line in file if line.strip().replace('-','').isalpha()]
     return words
 
-def get_word_set(set_name:str):
+def get_word_set(set_name:str,set_date:str):
     set_names = ["scrabble_plus_long","words_easy","words_hard","nyt_dictionary"]
     
     if set_name == "scrabble_plus_long":
@@ -83,7 +85,7 @@ def get_word_set(set_name:str):
     elif set_name == "nyt_dictionary":
         words_file_path = f"./words/nyt/{date_of_puzzle}.txt"
         if not os.path.isfile(words_file_path):
-            if date_of_puzzle == datetime.now().strftime('%Y-%m-%d'):
+            if date_of_puzzle == set_date:
                 nyt_metadata.save_todays_dictionary()
             else:
                 set_names.remove(set_name)
@@ -98,7 +100,7 @@ def get_word_set(set_name:str):
 if puzzle_type != "nyt" and word_list_type == "nyt_dictionary":
     print(Fore.RED + f"Warning! The daily NYT word list is not a complete list of words. Results may not be generated." + Fore.RESET)
 
-word_set = get_word_set(word_list_type)
+word_set = get_word_set(word_list_type,word_set_date)
 
 # function to determine if word contains any of the letters we can't use
 def contains_any_letter(input_string, letters_to_check):
