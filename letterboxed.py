@@ -289,7 +289,7 @@ if save_results:
         "chains_3":possible_chains_3
     })
 
-    directory = fr".\results\{date_of_puzzle}"
+    directory = os.path.join(".","results",date_of_puzzle)
     if puzzle_type == "nyt":
         file_path = os.path.join(directory, f"output_{puzzle_type}.json")
     else:

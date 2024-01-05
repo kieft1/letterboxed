@@ -27,7 +27,7 @@ def save_todays_dictionary():
     words = ast.literal_eval(todays_metadata['dictionary'])
     puzzle_date = todays_metadata['date']
 
-    directory = r".\words\nyt"
+    directory = os.path.join(".","words","nyt")
     file_name = f"{puzzle_date}.txt"
     file_path = os.path.join(directory, file_name)
     file_content = "\n".join(words)
