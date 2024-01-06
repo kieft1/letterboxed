@@ -4,27 +4,35 @@ import sys
 import json
 import os
 from datetime import datetime
+import game_options
 import nyt_metadata
 import results_ranking
 from tqdm import tqdm
 from colorama import Fore
+import argparse
+
+# parse arguments
+parser = argparse.ArgumentParser()
+parser.add_argument("-o", "--options", help="Options prompt", action="store_true")
+parser.add_argument("-r", "--results", help="Results printed, progress bar disabled", action="store_true")
+parser.add_argument("-ns", "--nosave", help="No save to file, just print the top results", action="store_true")
+args = parser.parse_args()
 
 ### OPTIONS ###
-# print three word chain results as they are found, makes it a bit slower
-print_results_option = False
 
-# puzzle type (nyt,manual)
-puzzle_type = "nyt"
+if args.options:
+    user_selections = game_options.prompt_for_user_selections()
+    puzzle_type = user_selections["game_mode"]
+else:
+    puzzle_type = "nyt"
 
 if puzzle_type != "nyt":
-    ### DEFINE PUZZLE ###
     date_of_puzzle = datetime.now().strftime('%Y-%m-%d')
-    letters = "mnopqrstuabc"
-    # word list type (words_easy,words_hard,scrabble_plus_long)
-    word_list_type = "scrabble_plus_long"
+    letters = user_selections["letters"]
+    word_list_type = user_selections["word_list"]
     word_set_date = "" # if using a pre-retrieve nyt_dictionary word set
     nyt_solution = ""
-elif puzzle_type == "nyt":
+else:
     todays_puzzle = nyt_metadata.get_todays_metadata()
     date_of_puzzle = todays_puzzle["date"]
     sides = todays_puzzle["sides"]
@@ -33,8 +41,12 @@ elif puzzle_type == "nyt":
     word_set_date = todays_puzzle["date"]
     nyt_solution = ' - '.join(todays_puzzle["nyt_solution"]).lower()
 
+# print three word chain results as they are found, makes it a bit slower
+print_results_option = args.results
+disable_progress_bar = args.results
+
 # output results to file
-save_results = True
+save_results = not(args.nosave)
 
 # include results ranking to show best options based on least repeated letters
 include_results_ranking = True
@@ -42,12 +54,6 @@ results_ranking_top_n = 10
 ranking_criteria = "total_repeated_count"
 
 letters = letters.lower()
-
-#check letters input
-if len(letters) != 12:
-    raise ValueError(Fore.RED + f"letters list should have exactly 12 letters. \"{letters}\" has {len(letters)} letters.")
-if len({char for char in letters}) != 12:
-    raise ValueError(Fore.RED + f"\"{letters}\" contains duplicate letters. letters list must have 12 distinct letters.")
 
 letters_list_separated = [letters[0:3],letters[3:6],letters[6:9],letters[9:12]]
 #create matrix for checking if consecutive letters are on same side of box
@@ -200,7 +206,7 @@ def two_plus_one_combinations(two_word_combinations:list,one_word_list:list,orde
     results_message = "three word chains found"
     results_count = 0
     if order == "two_then_one":
-        twc = tqdm(two_word_combinations,desc=f"{results_message} {results_count}",colour="blue")
+        twc = tqdm(two_word_combinations,desc=f"{results_message} {results_count}",colour="blue",disable=disable_progress_bar)
         twc_len = len(two_word_combinations)
         for i, tw in enumerate(twc):
             for ow in one_word_list:
