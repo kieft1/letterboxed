@@ -6,15 +6,15 @@ import os
 from datetime import datetime
 import nyt_metadata
 import results_ranking
+import game_prompt
 from tqdm import tqdm
 from colorama import Fore
 
 ### OPTIONS ###
+puzzle_type = game_prompt.get_user_inputs()
+
 # print three word chain results as they are found, makes it a bit slower
 print_results_option = False
-
-# puzzle type (nyt,manual)
-puzzle_type = "nyt"
 
 if puzzle_type != "nyt":
     ### DEFINE PUZZLE ###
