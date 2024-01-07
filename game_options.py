@@ -2,6 +2,18 @@ import inquirer
 from colorama import Fore
 import sys
 
+def error_letters_length(letters):
+    return (Fore.RED + f"letters list should have exactly 12 letters. \"{letters}\" has {len(letters)} letters.")
+def error_letters_duplicate(letters):
+    return (Fore.RED + f"\"{letters}\" contains duplicate letters. letters list must have 12 distinct letters.")
+
+def letters_validation(letters):
+    if len(letters) != 12:
+        raise ValueError(error_letters_length(letters))
+    if len({char for char in letters}) != 12:
+        raise ValueError(error_letters_duplicate(letters))
+    return True
+
 def prompt_for_user_selections():
     game_mode = [
     inquirer.List('game_mode',
@@ -16,10 +28,10 @@ def prompt_for_user_selections():
 
     def letters_validation(answers, current):
         letters = current
-        if len(current) != 12:
-            raise inquirer.errors.ValidationError('', reason=(Fore.RED + f"letters list should have exactly 12 letters. \"{letters}\" has {len(letters)} letters."))
+        if len(letters) != 12:
+            raise inquirer.errors.ValidationError('', reason=(error_letters_length(letters)))
         if len({char for char in letters}) != 12:
-            raise inquirer.errors.ValidationError('', reason=(Fore.RED + f"\"{letters}\" contains duplicate letters. letters list must have 12 distinct letters."))
+            raise inquirer.errors.ValidationError('', reason=(error_letters_duplicate(letters)))
         return True
 
     def prompt_for_custom_options():

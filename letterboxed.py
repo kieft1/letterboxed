@@ -12,8 +12,11 @@ from colorama import Fore
 import argparse
 
 # parse arguments
-parser = argparse.ArgumentParser()
-parser.add_argument("-o", "--options", help="Options prompt", action="store_true")
+parser = argparse.ArgumentParser(description="""For -c arg, include letters and word_list ex. -c "abcdefghijkl" "words_easy" """)
+custom_puzzle_args = parser.add_mutually_exclusive_group()
+custom_puzzle_args.add_argument("-o", "--options", help="Options prompt (terminal only)", action="store_true")
+custom_puzzle_args.add_argument("-c", "--custom", nargs=2, metavar=("letters","word_list"), help="""Custom puzzle args
+                                 "letterslist" ["scrabble_plus_long","words_easy","words_hard"]""")
 parser.add_argument("-r", "--results", help="Results printed, progress bar disabled", action="store_true")
 parser.add_argument("-ns", "--nosave", help="No save to file, just print the top results", action="store_true")
 args = parser.parse_args()
@@ -23,6 +26,10 @@ args = parser.parse_args()
 if args.options:
     user_selections = game_options.prompt_for_user_selections()
     puzzle_type = user_selections["game_mode"]
+elif args.custom:
+    user_selections = {"letters":args.custom[0],"word_list":args.custom[1]}
+    game_options.letters_validation(user_selections["letters"])
+    puzzle_type = "custom"
 else:
     puzzle_type = "nyt"
 
@@ -242,7 +249,9 @@ owl = one_word_list(sorted_word_list,letters_list)
 
 # get solutions for one and two word chains
 one_word_chains = [[ow["word"]] for ow in owl if ow["letters_remaining"] == []]
+print("one word chains found "+str(len(one_word_chains)))
 two_word_chains = [[tw["word1"],tw["word2"]] for tw in twc if tw["letters_remaining"] == []]
+print("two word chains found "+str(len(two_word_chains)))
 
 # get solutions for three word chains
 # only try for two word chains that aren't already solutions by themselves, since two word chains would finish your game
