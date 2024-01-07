@@ -6,13 +6,13 @@ Python project to solve [The New York Times Letter Boxed](https://www.nytimes.co
 
 The solver will construct chains of 1, 2, and 3 word solutions based on the puzzle input.
 
-### Game Modes
+### Solver Modes
 
-* nyt
+* NYT (default)
   * The solver retrieves the daily NYT game metadata and solves for 1, 2, and 3 word solutions by default.
   * This mode is optimized by retrieving the possible word list from NYT game metadata.
 
-* manual
+* Custom
   * The solver can also take a general 12 letter puzzle, three letters to a side, and solve with a few different word lists.
   * In this mode, the letters must follow the same rules of the game:
     * exactly 12 letters
