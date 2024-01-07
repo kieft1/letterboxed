@@ -26,6 +26,8 @@ The solver will construct chains of 1, 2, and 3 word solutions based on the puzz
 
 ### Executing program
 
+Test it out using [Google Colab](https://colab.research.google.com/github/kieft1/letterboxed/blob/colab/letterboxed.ipynb)!
+
 * Clone the repository
 * Run letterboxed.py
 * If solving the NYT puzzle, word list is saved locally
