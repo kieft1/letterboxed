@@ -250,8 +250,17 @@ owl = one_word_list(sorted_word_list,letters_list)
 # get solutions for one and two word chains
 one_word_chains = [[ow["word"]] for ow in owl if ow["letters_remaining"] == []]
 print("one word chains found "+str(len(one_word_chains)))
+
+if print_results_option:
+    for _ow in one_word_chains:
+        print(_ow)
+
 two_word_chains = [[tw["word1"],tw["word2"]] for tw in twc if tw["letters_remaining"] == []]
 print("two word chains found "+str(len(two_word_chains)))
+
+if print_results_option:
+    for _tw in two_word_chains:
+        print(_tw)
 
 # get solutions for three word chains
 # only try for two word chains that aren't already solutions by themselves, since two word chains would finish your game
